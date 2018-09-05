@@ -20,6 +20,15 @@ void ftSensorCallBack(geometry_msgs::WrenchStamped ft_value) {
 	
 }
 
+void jointPosCallBack(const sensor_msgs::JointState &joint_state) {
+		g_joint_state = joint_state;
+	}
+
+
+void ftCallBack(const geometry_msgs::WrenchStamped &wrench_stamped) {
+		g_ft_value = wrench_stamped.wrench;
+	}
+
 void jointPosCallBack(sensor_msgs::JointState joint_state) {
 	/* message description:
 	 std_msgs/Header header
