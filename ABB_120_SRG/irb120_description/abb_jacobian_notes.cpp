@@ -1,4 +1,4 @@
-#include <accomodation_controller.h>
+
 
 void ftSensorCallBack(geometry_msgs::WrenchStamped ft_value) {
 	/* message description:
@@ -46,13 +46,17 @@ void WrenchToCartVel(geometry_msgs/Wrench wrench, geometry_msgs/Twist &twist) {
 		  	float64 y
 		  	float64 z
 
-*/
+
 1. wrench to eigen 6x1
 2. multiply with Ka (6x6), private member variable
 3. convert resulting matrix to twist
+*/
 
 }
 
 void CartVelToJointVel (geometry_msgs/Twist twist, Eigen::Matrix6f jacobian, vector<float> &joint_vel) {
-	
+	Eigen::Matrix6f jacobian_inverse = jacobian.inverse();
+	Eigen::Vector6f twist_matrix = //Open up and stuff it
+	Eigen::Vector6f joint_velocities = jacobian_inverse * twist_matrix;
+	joint_vel = joint_velocities; //Open up and stuff it
 }
