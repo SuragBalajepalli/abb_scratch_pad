@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
 	
 	while(ros::ok()) {
 		ros::spinOnce();
-		ROS_INFO("In accomodation loop");
+		//ROS_INFO("In accomodation loop");
 		ft_sensor_value = control.getFTSensorValue();  //Remove these and change function definitions, check if it works
 		//ROS_INFO_STREAM("Recieved FT value"<<ft_sensor_value);
 		control.findCartVelFromWrench(ft_sensor_value, end_effector_twist);
