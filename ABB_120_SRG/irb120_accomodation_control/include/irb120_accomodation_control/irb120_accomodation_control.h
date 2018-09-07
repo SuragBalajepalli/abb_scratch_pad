@@ -16,18 +16,23 @@ class Irb120AccomodationControl {
 	public:
 	void findCartVelFromWrench (geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist);
 	void findCartVelFromWrench (geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist, Eigen::MatrixXf accomodation_gain);
-	void findJointVelFromCartVel (geometry_msgs::Twist twist, Eigen::MatrixXf jacobian, vector<float> &joint_vel);
-	void findJointVelFromCartVel (geometry_msgs::Twist twist, vector<float> &joint_vel);
+	void findJointVelFromCartVel (geometry_msgs::Twist twist,sensor_msgs::JointState, Eigen::MatrixXf jacobian, vector<float> &joint_vel);
+	void findJointVelFromCartVel (geometry_msgs::Twist twist, sensor_msgs::JointState, vector<float> &joint_vel);
 	void publishJointAngles(vector<float> joint_pos);
 	void publishJointAngles(vector<std_msgs::Float64> joint_pos);
 	void jointStateCallBack (const sensor_msgs::JointState &joint_state); 
 	void ftCallBack (const geometry_msgs::WrenchStamped &wrench_stamped);
 	sensor_msgs::JointState getJointState();
 	geometry_msgs::Wrench getFTSensorValue();
-	void initializeJacobian();
+	void commandJointPosFromJointVel(vector<float> joint_vel, sensor_msgs::JointState joint);
 	Irb120AccomodationControl(ros::NodeHandle &nh);
+	Eigen::MatrixXf getJacobian();
+
 
 	private:
+	void warmUp();
+	void initializeJacobian(sensor_msgs::JointState joint_states);
+	float dt = 0.01;
 	sensor_msgs::JointState g_joint_state;
 	geometry_msgs::Wrench g_ft_value;
 	Eigen::MatrixXf accomodation_gain = Eigen::MatrixXf::Identity(6,6);

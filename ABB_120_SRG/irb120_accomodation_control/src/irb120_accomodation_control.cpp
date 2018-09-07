@@ -58,62 +58,77 @@ class Irb120AccomodationControl {
 		joint_state_subscriber = nh.subscribe(joint_state_subscriber_topic, 1, &Irb120AccomodationControl::jointStateCallBack, this);
 		ft_value_subscriber = nh.subscribe(ft_value_subscriber_topic,1,&Irb120AccomodationControl::ftCallBack, this);
 
+		Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
+		warmUp();
 
-
+		//to prevent massive seg faults in case my subscribers are feeling moody
+		
 	}
 
-	void Irb120AccomodationControl::initializeJacobian() {
+	
+	void Irb120AccomodationControl::warmUp() {
+		sensor_msgs::JointState joint_state;
+		geometry_msgs::Wrench wrench;
+		for(int i = 0; i < 100; i++) { 
+			ros::Duration(0.01).sleep();
+			joint_state = getJointState();
+			wrench = getFTSensorValue();
+			ros::spinOnce();
+		} //need a better method to warm up my subscribers
+	}
+
+	void Irb120AccomodationControl::initializeJacobian(sensor_msgs::JointState joint_states) {
 		
-		ros::spinOnce(); //ensure latest joint state values
-		
+		ros::spinOnce(); //ensure latest joint state values --Not working, joint state message is blank
 		//should be a better way to do this.
 		//look into KDL for ros
 		//hand solved jacobian using symbolic math toolbox in matlab, lot of scope for errors.
 		jacobian(0,0) = 0;
-		jacobian(0,1) = 290*sin(g_joint_state.position[0]);
-		jacobian(0,2) = 560*sin(g_joint_state.position[0]); 
-		jacobian(0,3) = - (cos(g_joint_state.position[0])*sin(g_joint_state.position[1])*sin(g_joint_state.position[2]) - cos(g_joint_state.position[0])*cos(g_joint_state.position[1])*cos(g_joint_state.position[2]))*(134*sin(g_joint_state.position[2]) - 560) - 134*cos(g_joint_state.position[2])*(cos(g_joint_state.position[1])*sin(g_joint_state.position[2]) + cos(g_joint_state.position[2])*sin(g_joint_state.position[1]));
-		jacobian(0,4) =  (cos(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) + sin(g_joint_state.position[2])*sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])))*(134*sin(g_joint_state.position[2]) - 560) + 134*pow((cos(g_joint_state.position[2])), 2)*sin(g_joint_state.position[3]);
-		jacobian(0,5) = - (cos(g_joint_state.position[4])*sin(g_joint_state.position[2]) + cos(g_joint_state.position[2])*cos(g_joint_state.position[3])*sin(g_joint_state.position[4]))*(134*cos(g_joint_state.position[2]) + 374*sin(g_joint_state.position[4])) - (sin(g_joint_state.position[4])*(sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) - cos(g_joint_state.position[3])*sin(g_joint_state.position[2])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1]))) + cos(g_joint_state.position[2])*cos(g_joint_state.position[4])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])))*(374*cos(g_joint_state.position[4]) - 134*sin(g_joint_state.position[2]) + 560);
-		   
+		jacobian(0,1) = 290*sin(joint_states.position[0]);
+		jacobian(0,2) = 560*sin(joint_states.position[0]); 
+		jacobian(0,3) = - (cos(joint_states.position[0])*sin(joint_states.position[1])*sin(joint_states.position[2]) - cos(joint_states.position[0])*cos(joint_states.position[1])*cos(joint_states.position[2]))*(134*sin(joint_states.position[2]) - 560) - 134*cos(joint_states.position[2])*(cos(joint_states.position[1])*sin(joint_states.position[2]) + cos(joint_states.position[2])*sin(joint_states.position[1]));
+		jacobian(0,4) =  (cos(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) + sin(joint_states.position[2])*sin(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])))*(134*sin(joint_states.position[2]) - 560) + 134*pow((cos(joint_states.position[2])), 2)*sin(joint_states.position[3]);
+		jacobian(0,5) = - (cos(joint_states.position[4])*sin(joint_states.position[2]) + cos(joint_states.position[2])*cos(joint_states.position[3])*sin(joint_states.position[4]))*(134*cos(joint_states.position[2]) + 374*sin(joint_states.position[4])) - (sin(joint_states.position[4])*(sin(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) - cos(joint_states.position[3])*sin(joint_states.position[2])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1]))) + cos(joint_states.position[2])*cos(joint_states.position[4])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])))*(374*cos(joint_states.position[4]) - 134*sin(joint_states.position[2]) + 560);
 		jacobian(1,0) = 0;
-		jacobian(1,1) = -290*cos(g_joint_state.position[0]); 
-		jacobian(1,2) = -560*cos(g_joint_state.position[0]);
-		jacobian(1,3) = (cos(g_joint_state.position[1])*cos(g_joint_state.position[2])*sin(g_joint_state.position[0]) - sin(g_joint_state.position[0])*sin(g_joint_state.position[1])*sin(g_joint_state.position[2]))*(134*sin(g_joint_state.position[2]) - 560);
-		jacobian(1,4) = (cos(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])) - sin(g_joint_state.position[2])*sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])))*(134*sin(g_joint_state.position[2]) - 560);
-		jacobian(1,5) = -(sin(g_joint_state.position[4])*(sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])) + cos(g_joint_state.position[3])*sin(g_joint_state.position[2])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0]))) - cos(g_joint_state.position[2])*cos(g_joint_state.position[4])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])))*(374*cos(g_joint_state.position[4]) - 134*sin(g_joint_state.position[2]) + 560);
+		jacobian(1,1) = -290*cos(joint_states.position[0]); 
+		jacobian(1,2) = -560*cos(joint_states.position[0]);
+		jacobian(1,3) = (cos(joint_states.position[1])*cos(joint_states.position[2])*sin(joint_states.position[0]) - sin(joint_states.position[0])*sin(joint_states.position[1])*sin(joint_states.position[2]))*(134*sin(joint_states.position[2]) - 560);
+		jacobian(1,4) = (cos(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])) - sin(joint_states.position[2])*sin(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])))*(134*sin(joint_states.position[2]) - 560);
+		jacobian(1,5) = -(sin(joint_states.position[4])*(sin(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])) + cos(joint_states.position[3])*sin(joint_states.position[2])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0]))) - cos(joint_states.position[2])*cos(joint_states.position[4])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])))*(374*cos(joint_states.position[4]) - 134*sin(joint_states.position[2]) + 560);
 
 		jacobian(2,0) = 0;
 		jacobian(2,1) = 0;
 		jacobian(2,2) = 0;
-		jacobian(2,3) = 134*cos(g_joint_state.position[2])*(cos(g_joint_state.position[1])*cos(g_joint_state.position[2])*sin(g_joint_state.position[0]) - sin(g_joint_state.position[0])*sin(g_joint_state.position[1])*sin(g_joint_state.position[2]));
-		jacobian(2,4) = 134*cos(g_joint_state.position[2])*(cos(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])) - sin(g_joint_state.position[2])*sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])));
-		jacobian(2,5) = (sin(g_joint_state.position[4])*(sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])) + cos(g_joint_state.position[3])*sin(g_joint_state.position[2])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0]))) - cos(g_joint_state.position[2])*cos(g_joint_state.position[4])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])))*(134*cos(g_joint_state.position[2]) + 374*sin(g_joint_state.position[4]));
+		jacobian(2,3) = 134*cos(joint_states.position[2])*(cos(joint_states.position[1])*cos(joint_states.position[2])*sin(joint_states.position[0]) - sin(joint_states.position[0])*sin(joint_states.position[1])*sin(joint_states.position[2]));
+		jacobian(2,4) = 134*cos(joint_states.position[2])*(cos(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])) - sin(joint_states.position[2])*sin(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])));
+		jacobian(2,5) = (sin(joint_states.position[4])*(sin(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])) + cos(joint_states.position[3])*sin(joint_states.position[2])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0]))) - cos(joint_states.position[2])*cos(joint_states.position[4])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])))*(134*cos(joint_states.position[2]) + 374*sin(joint_states.position[4]));
 
 		jacobian(3,0) = 0;
-		jacobian(3,1) = -cos(g_joint_state.position[0]);
-		jacobian(3,2) = -cos(g_joint_state.position[0]);
-		jacobian(3,3) = sin(g_joint_state.position[0])*sin(g_joint_state.position[1])*sin(g_joint_state.position[2]) - cos(g_joint_state.position[1])*cos(g_joint_state.position[2])*sin(g_joint_state.position[0]);
-		jacobian(3,4) = sin(g_joint_state.position[2])*sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) - cos(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1]));
-		jacobian(3,5) = cos(g_joint_state.position[2])*cos(g_joint_state.position[4])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) - sin(g_joint_state.position[4])*(sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1])) + cos(g_joint_state.position[3])*sin(g_joint_state.position[2])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])));
+		jacobian(3,1) = -cos(joint_states.position[0]);
+		jacobian(3,2) = -cos(joint_states.position[0]);
+		jacobian(3,3) = sin(joint_states.position[0])*sin(joint_states.position[1])*sin(joint_states.position[2]) - cos(joint_states.position[1])*cos(joint_states.position[2])*sin(joint_states.position[0]);
+		jacobian(3,4) = sin(joint_states.position[2])*sin(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) - cos(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1]));
+		jacobian(3,5) = cos(joint_states.position[2])*cos(joint_states.position[4])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) - sin(joint_states.position[4])*(sin(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1])) + cos(joint_states.position[3])*sin(joint_states.position[2])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])));
 
 		jacobian(4,0) = 0;
-		jacobian(4,1) = -sin(g_joint_state.position[0]);
-		jacobian(4,2) = -sin(g_joint_state.position[0]);
-		jacobian(4,3) = cos(g_joint_state.position[0])*cos(g_joint_state.position[1])*cos(g_joint_state.position[2]) - cos(g_joint_state.position[0])*sin(g_joint_state.position[1])*sin(g_joint_state.position[2]);
-		jacobian(4,4) = cos(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) + sin(g_joint_state.position[2])*sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1]));
-		jacobian(4,5) = sin(g_joint_state.position[4])*(sin(g_joint_state.position[3])*(cos(g_joint_state.position[0])*sin(g_joint_state.position[1]) - cos(g_joint_state.position[1])*sin(g_joint_state.position[0])) - cos(g_joint_state.position[3])*sin(g_joint_state.position[2])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1]))) + cos(g_joint_state.position[2])*cos(g_joint_state.position[4])*(cos(g_joint_state.position[0])*cos(g_joint_state.position[1]) + sin(g_joint_state.position[0])*sin(g_joint_state.position[1]));
+		jacobian(4,1) = -sin(joint_states.position[0]);
+		jacobian(4,2) = -sin(joint_states.position[0]);
+		jacobian(4,3) = cos(joint_states.position[0])*cos(joint_states.position[1])*cos(joint_states.position[2]) - cos(joint_states.position[0])*sin(joint_states.position[1])*sin(joint_states.position[2]);
+		jacobian(4,4) = cos(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) + sin(joint_states.position[2])*sin(joint_states.position[3])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1]));
+		jacobian(4,5) = sin(joint_states.position[4])*(sin(joint_states.position[3])*(cos(joint_states.position[0])*sin(joint_states.position[1]) - cos(joint_states.position[1])*sin(joint_states.position[0])) - cos(joint_states.position[3])*sin(joint_states.position[2])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1]))) + cos(joint_states.position[2])*cos(joint_states.position[4])*(cos(joint_states.position[0])*cos(joint_states.position[1]) + sin(joint_states.position[0])*sin(joint_states.position[1]));
 
 		jacobian(5,0) = 1;
 		jacobian(5,1) = 0;
 		jacobian(5,2) = 0;
-		jacobian(5,3) = - cos(g_joint_state.position[1])*sin(g_joint_state.position[2]) - cos(g_joint_state.position[2])*sin(g_joint_state.position[1]);
-		jacobian(5,4) = cos(g_joint_state.position[2])*sin(g_joint_state.position[3]);
-		jacobian(5,5) = - cos(g_joint_state.position[4])*sin(g_joint_state.position[2]) - cos(g_joint_state.position[2])*cos(g_joint_state.position[3])*sin(g_joint_state.position[4]);
+		jacobian(5,3) = - cos(joint_states.position[1])*sin(joint_states.position[2]) - cos(joint_states.position[2])*sin(joint_states.position[1]);
+		jacobian(5,4) = cos(joint_states.position[2])*sin(joint_states.position[3]);
+		jacobian(5,5) = - cos(joint_states.position[4])*sin(joint_states.position[2]) - cos(joint_states.position[2])*cos(joint_states.position[3])*sin(joint_states.position[4]);
 
+		
 		jacobian_inverse = jacobian.inverse();
 
 	}
+
 
 	void Irb120AccomodationControl::findCartVelFromWrench(geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist) {
 		//uses accomodation gain described in class
@@ -154,7 +169,7 @@ class Irb120AccomodationControl {
 		twist.angular.z = twist_matrix(5);	
 	}
 
-	void Irb120AccomodationControl::findJointVelFromCartVel (geometry_msgs::Twist twist, Eigen::MatrixXf given_jacobian, vector<float> &joint_vel) {
+	void Irb120AccomodationControl::findJointVelFromCartVel (geometry_msgs::Twist twist, sensor_msgs::JointState joint_states, Eigen::MatrixXf given_jacobian, vector<float> &joint_vel) {
 		//takes cart vel input in twist form, returns a 6 element vector of joint vel
 		//User defined jacobian
 		joint_vel.clear();
@@ -175,11 +190,13 @@ class Irb120AccomodationControl {
 		joint_vel.push_back(joint_velocities(5));
 	}
 
-	void Irb120AccomodationControl::findJointVelFromCartVel (geometry_msgs::Twist twist, vector<float> &joint_vel) {
+
+
+	void Irb120AccomodationControl::findJointVelFromCartVel (geometry_msgs::Twist twist, sensor_msgs::JointState joint_states, vector<float> &joint_vel) {
 		//same as above, except
 		//not user defined jacobian
 		ros::spinOnce();
-		initializeJacobian();
+		initializeJacobian(joint_states);
 		joint_vel.clear();
 		Eigen::VectorXf twist_matrix(6);
 		Eigen::VectorXf joint_velocities(6);
@@ -189,7 +206,6 @@ class Irb120AccomodationControl {
 						twist.angular.x,
 						twist.angular.y,
 						twist.angular.z;
-
 		joint_velocities = jacobian_inverse * twist_matrix;
 		joint_vel.push_back(joint_velocities(0));
 		joint_vel.push_back(joint_velocities(1));
@@ -197,6 +213,15 @@ class Irb120AccomodationControl {
 		joint_vel.push_back(joint_velocities(3));
 		joint_vel.push_back(joint_velocities(4));
 		joint_vel.push_back(joint_velocities(5));
+	}
+
+	void Irb120AccomodationControl::commandJointPosFromJointVel(vector<float> joint_vel, sensor_msgs::JointState joint_state) {
+		ros::spinOnce();
+		vector<float> joint_pos_cmd(6,0);
+		for(int i = 0; i <=5; i++) {
+			joint_pos_cmd[i] = joint_vel[i] *  dt + joint_state.position[i];
+		}
+		publishJointAngles(joint_pos_cmd);
 	}
 
 	void Irb120AccomodationControl::publishJointAngles(vector<std_msgs::Float64> joint_pos) {
@@ -232,6 +257,10 @@ class Irb120AccomodationControl {
 
 	geometry_msgs::Wrench Irb120AccomodationControl::getFTSensorValue() {
 		return g_ft_value;
+	}
+
+	Eigen::MatrixXf Irb120AccomodationControl::getJacobian() {
+		return jacobian;
 	}
 
 

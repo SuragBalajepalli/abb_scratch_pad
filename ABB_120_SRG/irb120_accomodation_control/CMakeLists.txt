@@ -139,6 +139,7 @@ add_library(irb120_accomodation_control
 # add_executable(${PROJECT_NAME}_node src/ABB_accomodation_control_node.cpp)
 add_executable(publish_test src/publish_test.cpp)
 add_executable(subscribe_test src/subscribe_test.cpp)
+add_executable(everything_test src/everything_test.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -155,6 +156,11 @@ target_link_libraries(publish_test
    ${catkin_LIBRARIES}
 	irb120_accomodation_control
  )
+
+ target_link_libraries(everything_test
+  ${catkin_LIBRARIES}
+  irb120_accomodation_control
+  )
 
 target_link_libraries(subscribe_test 
    ${catkin_LIBRARIES}
