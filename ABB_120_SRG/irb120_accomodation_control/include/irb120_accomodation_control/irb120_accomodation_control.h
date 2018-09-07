@@ -24,15 +24,15 @@ class Irb120AccomodationControl {
 	void ftCallBack (const geometry_msgs::WrenchStamped &wrench_stamped);
 	sensor_msgs::JointState getJointState();
 	geometry_msgs::Wrench getFTSensorValue();
-
+	void initializeJacobian();
 	Irb120AccomodationControl(ros::NodeHandle &nh);
 
 	private:
 	sensor_msgs::JointState g_joint_state;
 	geometry_msgs::Wrench g_ft_value;
-	const Eigen::MatrixXf accomodation_gain = Eigen::MatrixXf::Identity(6,6);
-	const Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
-	const Eigen::MatrixXf jacobian_inverse = jacobian.inverse();
+	Eigen::MatrixXf accomodation_gain = Eigen::MatrixXf::Identity(6,6);
+	Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
+	Eigen::MatrixXf jacobian_inverse = jacobian.inverse();
 	const string joint1_topic_name = "/irb120/joint1_position_controller/command";
 	const string joint2_topic_name = "/irb120/joint2_position_controller/command";
 	const string joint3_topic_name = "/irb120/joint3_position_controller/command";
