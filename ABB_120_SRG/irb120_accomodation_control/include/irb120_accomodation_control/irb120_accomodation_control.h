@@ -45,7 +45,7 @@ class Irb120AccomodationControl {
 	const string joint5_topic_name = "/irb120/joint5_position_controller/command";
 	const string joint6_topic_name = "/irb120/joint6_position_controller/command";
 	const string joint_state_subscriber_topic = "/irb120/joint_states";
-	const string ft_value_subscriber_topic = "/ft_sensor_topic";
+	const string ft_value_subscriber_topic = "/ft_sensor_topic_fake";
 	ros::Publisher joint1_pub, joint2_pub, joint3_pub, joint4_pub, joint5_pub, joint6_pub;
 	ros::Subscriber joint_state_subscriber, ft_value_subscriber;
 	

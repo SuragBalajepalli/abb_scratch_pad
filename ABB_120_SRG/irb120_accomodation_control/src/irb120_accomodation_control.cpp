@@ -140,7 +140,7 @@ class Irb120AccomodationControl {
 						wrench.torque.x,
 						wrench.torque.y,
 						wrench.torque.z; 
-		twist_matrix = accomodation_gain * wrench_matrix; //maybe the other way round, check it out, makes no difference with I
+		twist_matrix = - accomodation_gain * wrench_matrix; 
 		twist.linear.x = twist_matrix(0); //rethink the need to populate this message
 		twist.linear.y = twist_matrix(1);
 		twist.linear.z = twist_matrix(2);
