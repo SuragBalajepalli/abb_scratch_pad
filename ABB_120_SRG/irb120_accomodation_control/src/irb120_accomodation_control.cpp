@@ -178,6 +178,7 @@ class Irb120AccomodationControl {
 	void Irb120AccomodationControl::findJointVelFromCartVel (geometry_msgs::Twist twist, vector<float> &joint_vel) {
 		//same as above, except
 		//not user defined jacobian
+		ros::spinOnce();
 		initializeJacobian();
 		joint_vel.clear();
 		Eigen::VectorXf twist_matrix(6);
@@ -188,6 +189,7 @@ class Irb120AccomodationControl {
 						twist.angular.x,
 						twist.angular.y,
 						twist.angular.z;
+
 		joint_velocities = jacobian_inverse * twist_matrix;
 		joint_vel.push_back(joint_velocities(0));
 		joint_vel.push_back(joint_velocities(1));
