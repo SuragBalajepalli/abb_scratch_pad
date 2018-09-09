@@ -129,6 +129,39 @@ class Irb120AccomodationControl {
 
 	}
 
+	void Irb120AccomodationControl::calculateTwistFromWrench(geometry_msgs::Wrench wrench, sensor_msgs::JointState joint_state, vector<float> desired_point, geometry_msgs::Twist &twist) {
+		//calculates accomodation gain from napkin math, need confirmation	
+		//Do not use until irb120 fk are implemented
+		//DO NOT USE UNTIL CHECKED
+		Eigen::VectorXf wrench_matrix(6); //since operations need to be performed
+		Eigen::VectorXf twist_matrix(6);
+		wrench_matrix<<wrench.force.x, 
+						wrench.force.y,
+						wrench.force.z,
+						wrench.torque.x,
+						wrench.torque.y,
+						wrench.torque.z;
+		Eigen::VectorXf desired_end_effector_pose(6);
+		if(desired_point.size() == 6) {
+		desired_end_effector_pose<<desired_point[0],
+									desired_point[1],
+									desired_point[2],
+									desired_point[3],
+									desired_point[4],
+									desired_point[5];
+								}
+		Eigen::VectorXf current_end_effector_pose(6), current_end_effector_velocity(6);
+		current_end_effector_pose<<0,0,0,0,0,0; //replace with fk from joint state
+		current_end_effector_velocity<<0,0,0,0,0,0; //ideally to be calculated from Jacobian and joint vel
+		//make desired point, joint state.position and joint_state.velocity into eigen
+		twist_matrix = (dt *(wrench_matrix + k_virtual_ * (desired_end_effector_pose - current_end_effector_pose) + b_virtual_ * (current_end_effector_velocity))) * m_virtual_.inverse(); 
+		twist.linear.x = twist_matrix(0); //rethink the need to populate this message
+		twist.linear.y = twist_matrix(1);
+		twist.linear.z = twist_matrix(2);
+		twist.angular.x = twist_matrix(3);
+		twist.angular.y = twist_matrix(4);
+		twist.angular.z = twist_matrix(5);
+	}
 
 	void Irb120AccomodationControl::findCartVelFromWrench(geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist) {
 		//uses accomodation gain described in class
@@ -250,6 +283,29 @@ class Irb120AccomodationControl {
 		g_ft_value = wrench_stamped.wrench;
 	}
 
+	void Irb120AccomodationControl::setKvirtual(Eigen::MatrixXf k_virtual) {
+		k_virtual_ = k_virtual;
+	}
+
+	void Irb120AccomodationControl::setMvirtual(Eigen::MatrixXf m_virtual) {
+		m_virtual_ = m_virtual;
+	}
+
+	void Irb120AccomodationControl::setBvirtual(Eigen::MatrixXf b_virtual) {
+		b_virtual_ = b_virtual;
+	}
+
+	Eigen::MatrixXf Irb120AccomodationControl::getKvirtual(){
+		return k_virtual_;
+	}
+
+	Eigen::MatrixXf Irb120AccomodationControl::getMvirtual(){
+		return m_virtual_;
+	}
+
+	Eigen::MatrixXf Irb120AccomodationControl::getBvirtual(){
+		return b_virtual_;
+	}
 	sensor_msgs::JointState Irb120AccomodationControl::getJointState() {
 		
 		return g_joint_state;

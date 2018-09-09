@@ -27,7 +27,13 @@ class Irb120AccomodationControl {
 	void commandJointPosFromJointVel(vector<float> joint_vel, sensor_msgs::JointState joint);
 	Irb120AccomodationControl(ros::NodeHandle &nh);
 	Eigen::MatrixXf getJacobian();
-
+	void setBvirtual(Eigen::MatrixXf b_virtual);
+	void setMvirtual(Eigen::MatrixXf m_virtual);
+	void setKvirtual(Eigen::MatrixXf k_virtual);
+	Eigen::MatrixXf getKvirtual();
+	Eigen::MatrixXf getMvirtual();
+	Eigen::MatrixXf getBvirtual();
+	void calculateTwistFromWrench(geometry_msgs::Wrench wrench, sensor_msgs::JointState joint_state, vector<float> desired_point, geometry_msgs::Twist &twist);
 
 	private:
 	void warmUp();
@@ -38,6 +44,9 @@ class Irb120AccomodationControl {
 	Eigen::MatrixXf accomodation_gain = Eigen::MatrixXf::Identity(6,6);
 	Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
 	Eigen::MatrixXf jacobian_inverse = jacobian.inverse();
+	Eigen::MatrixXf k_virtual_ = Eigen::MatrixXf::Identity(6,6);
+	Eigen::MatrixXf b_virtual_ = Eigen::MatrixXf::Identity(6,6);
+	Eigen::MatrixXf m_virtual_ = Eigen::MatrixXf::Identity(6,6);
 	const string joint1_topic_name = "/irb120/joint1_position_controller/command";
 	const string joint2_topic_name = "/irb120/joint2_position_controller/command";
 	const string joint3_topic_name = "/irb120/joint3_position_controller/command";
