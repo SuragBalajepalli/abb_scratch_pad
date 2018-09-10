@@ -38,12 +38,14 @@ class Irb120AccomodationControl {
 	private:
 	void warmUp();
 	void initializeJacobian(sensor_msgs::JointState joint_states);
+	void initializeSubscribers(ros::NodeHandle &nh);
+	void initializePublishers(ros::NodeHandle &nh);
 	float dt = 0.01;
-	sensor_msgs::JointState g_joint_state;
-	geometry_msgs::Wrench g_ft_value;
-	Eigen::MatrixXf accomodation_gain = Eigen::MatrixXf::Identity(6,6);
-	Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
-	Eigen::MatrixXf jacobian_inverse = jacobian.inverse();
+	sensor_msgs::JointState g_joint_state_;
+	geometry_msgs::Wrench g_ft_value_;
+	Eigen::MatrixXf accomodation_gain_ = Eigen::MatrixXf::Identity(6,6);
+	Eigen::MatrixXf jacobian_ = Eigen::MatrixXf::Zero(6,6); //Need to initialize this
+	Eigen::MatrixXf jacobian_inverse_ = jacobian_.inverse();
 	Eigen::MatrixXf k_virtual_ = Eigen::MatrixXf::Identity(6,6);
 	Eigen::MatrixXf b_virtual_ = Eigen::MatrixXf::Identity(6,6);
 	Eigen::MatrixXf m_virtual_ = Eigen::MatrixXf::Identity(6,6);
