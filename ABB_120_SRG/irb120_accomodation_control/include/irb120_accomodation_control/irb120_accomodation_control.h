@@ -9,7 +9,8 @@
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float64.h>
 #include <irb120_accomodation_control/irb120_accomodation_control.h>
-
+#include <tf/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 using namespace std;
 
 class Irb120AccomodationControl {
@@ -34,13 +35,24 @@ class Irb120AccomodationControl {
 	Eigen::MatrixXf getMvirtual();
 	Eigen::MatrixXf getBvirtual();
 	void calculateTwistFromWrench(geometry_msgs::Wrench wrench, sensor_msgs::JointState joint_state, vector<float> desired_point, geometry_msgs::Twist &twist);
-
+	geometry_msgs::TransformStamped getFlangeTransform();
+	geometry_msgs::Wrench getTransformedWrench();
+	Eigen::Affine3f getAffine_test();
 	private:
+	tf2_ros::Buffer tfBuffer_;
+	tf2_ros::TransformListener* tfListener_;
 	void warmUp();
 	void initializeJacobian(sensor_msgs::JointState joint_states);
 	void initializeSubscribers(ros::NodeHandle &nh);
 	void initializePublishers(ros::NodeHandle &nh);
+	void updateFlangeTransform();
+	geometry_msgs::Wrench transformWrench(geometry_msgs::Wrench);
 	float dt = 0.01;
+	std::string base_frame_ = "world";
+	std::string flange_frame_ = "link7";
+	geometry_msgs::TransformStamped flange_transform_;
+	Eigen::MatrixXf flange_transform_matrix_ = Eigen::MatrixXf::Zero(4,4);
+	Eigen::Affine3f flange_transform_affine_;
 	sensor_msgs::JointState g_joint_state_;
 	geometry_msgs::Wrench g_ft_value_;
 	Eigen::MatrixXf accomodation_gain_ = Eigen::MatrixXf::Identity(6,6);

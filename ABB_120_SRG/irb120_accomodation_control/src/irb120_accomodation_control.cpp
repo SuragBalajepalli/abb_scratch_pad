@@ -49,6 +49,7 @@ class Irb120AccomodationControl {
 		
 		initializePublishers(nh);
 		initializeSubscribers(nh);
+		tfListener_ = new tf2_ros::TransformListener(tfBuffer_);
 		
 		//Eigen::MatrixXf jacobian = Eigen::MatrixXf::Zero(6,6); //Need to initialize this// put it somewhere else?
 		warmUp();
@@ -77,6 +78,71 @@ class Irb120AccomodationControl {
 		sensor_msgs::JointState joint_state;
 		geometry_msgs::Wrench wrench;
 		while(!(g_joint_state_.position.size() == 6) && !(g_joint_state_.velocity.size()) ) ros::spinOnce(); //need a way to check F/T sensor value
+	}
+
+	void Irb120AccomodationControl::updateFlangeTransform() {
+		//need to wait for transform, how?
+		//tfBuffer_.waitForTransform(base_frame_,flange_frame_,ros::Time::now(),ros::Duration(3.0)); //this blocks, oh well. This has been deprecated anyway
+		flange_transform_ = tfBuffer_.lookupTransform(base_frame_,flange_frame_,ros::Time(0), ros::Duration(1));//This blocks until tfs are found
+		//bad code, fix it later on 
+		float a = flange_transform_.transform.rotation.w;
+		float b = flange_transform_.transform.rotation.x;
+		float c = flange_transform_.transform.rotation.y;
+		float d = flange_transform_.transform.rotation.z;
+		//need to construct a 4x4 transformation matrix from the transformStamped message
+		//seperately filling out the 3x3 rotation matrix
+		Eigen::Matrix3f rotation_matrix;
+		rotation_matrix(0,0) = pow(a,2) + pow(b,2) - pow(c,2) - pow(d,2);
+		rotation_matrix(0,1) = 2 * (b * c - a * d);
+		rotation_matrix(0,2) = 2 * (b * d + a * c);
+		rotation_matrix(1,0) = 2 * (b * c + a * d);
+		rotation_matrix(1,1) = pow(a,2) - pow(b,2) + pow(c,2) - pow(d,2);
+		rotation_matrix(1,2) = 2 * (c * d - a * b);
+		rotation_matrix(2,0) = 2 * (b * d - a * c);
+		rotation_matrix(2,1) = 2 * (c * d + a * b);
+		rotation_matrix(2,2) = pow(a,2) - pow(b,2) - pow(c,2) + pow(d,2); 
+		
+		flange_transform_matrix_.block<3,3>(0,0) = rotation_matrix;
+		flange_transform_matrix_.row(3)<<0,0,0,1;
+		//since rotation matrix element 4,4 is 1
+		flange_transform_matrix_(3,3) = 1;
+		//last column of the 4x4 matrix contains the origin 
+		flange_transform_matrix_.col(3)<<flange_transform_.transform.translation.x,
+										flange_transform_.transform.translation.y,
+										flange_transform_.transform.translation.z,
+										1;
+		Eigen::Vector3f translation_for_affine;
+		translation_for_affine<<flange_transform_.transform.translation.x,
+										flange_transform_.transform.translation.y,
+										flange_transform_.transform.translation.z;
+		//such overkill, initialized element 4,4 to be 1 at 3 diff places, fix this code
+		//Usable form for transformations
+		flange_transform_affine_.linear() = rotation_matrix;
+		flange_transform_affine_.translation() = translation_for_affine;
+	}
+
+	geometry_msgs::Wrench Irb120AccomodationControl::transformWrench(geometry_msgs::Wrench wrench) {
+		updateFlangeTransform();
+		Eigen::Vector3f force_vector;
+		force_vector<<wrench.force.x,
+						wrench.force.y,
+						wrench.force.z;
+
+		Eigen::Vector3f torque_vector;
+		torque_vector<<wrench.torque.x,
+						wrench.torque.y,
+						wrench.torque.z;
+
+		Eigen::Vector3f transformed_force_vector = flange_transform_affine_ * force_vector;
+		Eigen::Vector3f transformed_torque_vector = flange_transform_affine_ * torque_vector;
+		geometry_msgs::Wrench transformed_wrench;
+		transformed_wrench.force.x = transformed_force_vector(0);
+		transformed_wrench.force.y = transformed_force_vector(1);
+		transformed_wrench.force.z = transformed_force_vector(2);
+		transformed_wrench.torque.x = transformed_torque_vector(0);
+		transformed_wrench.torque.y = transformed_torque_vector(1);
+		transformed_wrench.torque.z = transformed_torque_vector(2);
+		return transformed_wrench;
 	}
 
 	void Irb120AccomodationControl::initializeJacobian(sensor_msgs::JointState joint_states) {
@@ -169,14 +235,16 @@ class Irb120AccomodationControl {
 
 	void Irb120AccomodationControl::findCartVelFromWrench(geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist) {
 		//uses accomodation gain described in class
+		updateFlangeTransform(); // gets the latest transform value into a member variable called flange_transform_matrix_;
+		geometry_msgs::Wrench transformed_wrench = transformWrench(wrench);
 		Eigen::VectorXf wrench_matrix(6); //since operations need to be performed
 		Eigen::VectorXf twist_matrix(6);
-		wrench_matrix<<wrench.force.x, 
-						wrench.force.y,
-						wrench.force.z,
-						wrench.torque.x,
-						wrench.torque.y,
-						wrench.torque.z; 
+		wrench_matrix<<transformed_wrench.force.x, 
+						transformed_wrench.force.y,
+						transformed_wrench.force.z,
+						transformed_wrench.torque.x,
+						transformed_wrench.torque.y,
+						transformed_wrench.torque.z; 
 		twist_matrix = - accomodation_gain_ * wrench_matrix; 
 		twist.linear.x = twist_matrix(0); //rethink the need to populate this message
 		twist.linear.y = twist_matrix(1);
@@ -323,4 +391,21 @@ class Irb120AccomodationControl {
 		return jacobian_;
 	}
 
+	geometry_msgs::TransformStamped Irb120AccomodationControl::getFlangeTransform() {
+		updateFlangeTransform();
+		return flange_transform_;
+	}
 
+	geometry_msgs::Wrench Irb120AccomodationControl::getTransformedWrench() {
+		ros::spinOnce();
+		updateFlangeTransform();
+		ros::spinOnce();
+		return transformWrench(g_ft_value_);
+	}
+
+	Eigen::Affine3f Irb120AccomodationControl::getAffine_test() {
+		ros::spinOnce();
+		updateFlangeTransform();
+		ros::spinOnce();
+		return flange_transform_affine_;
+	}

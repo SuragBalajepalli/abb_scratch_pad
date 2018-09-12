@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
   std_msgs
+	tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -140,6 +141,7 @@ add_library(irb120_accomodation_control
 add_executable(publish_test src/publish_test.cpp)
 add_executable(subscribe_test src/subscribe_test.cpp)
 add_executable(everything_test src/everything_test.cpp)
+add_executable(transform_test src/transform_test.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -164,6 +166,11 @@ target_link_libraries(publish_test
 
 target_link_libraries(subscribe_test 
    ${catkin_LIBRARIES}
+	irb120_accomodation_control
+ )
+
+target_link_libraries(transform_test
+	${catkin_LIBRARIES}
 	irb120_accomodation_control
  )
 
