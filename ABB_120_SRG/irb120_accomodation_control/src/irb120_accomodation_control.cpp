@@ -117,8 +117,10 @@ class Irb120AccomodationControl {
 										flange_transform_.transform.translation.z;
 		//such overkill, initialized element 4,4 to be 1 at 3 diff places, fix this code
 		//Usable form for transformations
-		flange_transform_affine_.linear() = rotation_matrix;
-		flange_transform_affine_.translation() = translation_for_affine;
+		//flange_transform_affine_.linear() = rotation_matrix;
+		//flange_transform_affine_.translation() = translation_for_affine;
+		Eigen::Affine3f A(flange_transform_matrix_);
+		flange_transform_affine_ = A; //apparently this is a thing
 	}
 
 	geometry_msgs::Wrench Irb120AccomodationControl::transformWrench(geometry_msgs::Wrench wrench) {

@@ -51,7 +51,7 @@ class Irb120AccomodationControl {
 	std::string base_frame_ = "world";
 	std::string flange_frame_ = "link7";
 	geometry_msgs::TransformStamped flange_transform_;
-	Eigen::MatrixXf flange_transform_matrix_ = Eigen::MatrixXf::Zero(4,4);
+	Eigen::Matrix4f flange_transform_matrix_ = Eigen::MatrixXf::Zero(4,4);
 	Eigen::Affine3f flange_transform_affine_;
 	sensor_msgs::JointState g_joint_state_;
 	geometry_msgs::Wrench g_ft_value_;
