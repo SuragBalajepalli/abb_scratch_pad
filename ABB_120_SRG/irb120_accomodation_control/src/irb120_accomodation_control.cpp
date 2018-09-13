@@ -115,7 +115,7 @@ class Irb120AccomodationControl {
 		translation_for_affine<<flange_transform_.transform.translation.x,
 										flange_transform_.transform.translation.y,
 										flange_transform_.transform.translation.z;
-		//such overkill, initialized element 4,4 to be 1 at 3 diff places, fix this code
+		//such overkill, initialized element 4,4 to be 1 at 3 diff places, fix this code! FIX IT!
 		//Usable form for transformations
 		//flange_transform_affine_.linear() = rotation_matrix;
 		//flange_transform_affine_.translation() = translation_for_affine;
@@ -125,25 +125,29 @@ class Irb120AccomodationControl {
 
 	geometry_msgs::Wrench Irb120AccomodationControl::transformWrench(geometry_msgs::Wrench wrench) {
 		updateFlangeTransform();
-		Eigen::Vector3f force_vector;
-		force_vector<<wrench.force.x,
+		Eigen::VectorXf wrench_vector, transformed_wrench_vector;
+		geometry_msgs::Wrench transformed_wrench;
+		wrench_vector<<wrench.force.x,
 						wrench.force.y,
-						wrench.force.z;
-
-		Eigen::Vector3f torque_vector;
-		torque_vector<<wrench.torque.x,
+						wrench.force.z,
+						wrench.torque.x,
 						wrench.torque.y,
 						wrench.torque.z;
 
-		Eigen::Vector3f transformed_force_vector = flange_transform_affine_ * force_vector;
-		Eigen::Vector3f transformed_torque_vector = flange_transform_affine_ * torque_vector;
-		geometry_msgs::Wrench transformed_wrench;
-		transformed_wrench.force.x = transformed_force_vector(0);
-		transformed_wrench.force.y = transformed_force_vector(1);
-		transformed_wrench.force.z = transformed_force_vector(2);
-		transformed_wrench.torque.x = transformed_torque_vector(0);
-		transformed_wrench.torque.y = transformed_torque_vector(1);
-		transformed_wrench.torque.z = transformed_torque_vector(2);
+		Eigen::MatrixXf wrench_transformation_matrix = Eigen::MatrixXf::Zero(6,6);
+		Eigen::Matrix3f origin_hat = vectorHat(flange_transform_matrix_.block<1,3>(1,3));
+		//This is from MLS book, maybe implemented wrongly
+		wrench_transformation_matrix.block<3,3>(0,0) = flange_transform_matrix_.block<3,3>(0,0).transpose();
+		wrench_transformation_matrix.block<3,3>(3,3) = flange_transform_matrix_.block<3,3>(0,0).transpose();
+		wrench_transformation_matrix.block<3,3>(3,0) = (flange_transform_matrix_.block<3,3>(0,0).transpose()) * origin_hat * -1;
+			
+		transformed_wrench_vector = wrench_transformation_matrix * wrench_vector;
+		transformed_wrench.force.x = transformed_wrench_vector(0);
+		transformed_wrench.force.y = transformed_wrench_vector(1);
+		transformed_wrench.force.z = transformed_wrench_vector(2);
+		transformed_wrench.torque.x = transformed_wrench_vector(0);
+		transformed_wrench.torque.y = transformed_wrench_vector(1);
+		transformed_wrench.torque.z = transformed_wrench_vector(2);
 		return transformed_wrench;
 	}
 
@@ -347,6 +351,20 @@ class Irb120AccomodationControl {
 		} 
 		publishJointAngles(joint_pos_msg);
 
+	}
+
+	Eigen::Matrix3f Irb120AccomodationControl::vectorHat(Eigen::Vector3f vector) {
+		Eigen::Matrix3f hat_of_vector;
+		hat_of_vector(0,0) = 0;
+		hat_of_vector(0,1) = - vector(2);
+		hat_of_vector(0,2) = vector(1);
+		hat_of_vector(1,0) = vector(2);
+		hat_of_vector(1,1) = 0;
+		hat_of_vector(1,2) = - vector(0);
+		hat_of_vector(2,0) = - vector(1);
+		hat_of_vector(2,1) = vector(0);
+		hat_of_vector(2,2) = 0;
+		return hat_of_vector;
 	}
 
 	void Irb120AccomodationControl::jointStateCallBack(const sensor_msgs::JointState &joint_state) {

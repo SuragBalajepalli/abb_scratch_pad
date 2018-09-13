@@ -46,6 +46,7 @@ class Irb120AccomodationControl {
 	void initializeSubscribers(ros::NodeHandle &nh);
 	void initializePublishers(ros::NodeHandle &nh);
 	void updateFlangeTransform();
+	Eigen::Matrix3f vectorHat(Eigen::Vector3f vector);
 	geometry_msgs::Wrench transformWrench(geometry_msgs::Wrench);
 	float dt = 0.01;
 	std::string base_frame_ = "world";
