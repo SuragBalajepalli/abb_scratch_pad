@@ -48,6 +48,7 @@ class Irb120AccomodationControl {
 	void updateFlangeTransform();
 	Eigen::Matrix3f vectorHat(Eigen::Vector3f vector);
 	geometry_msgs::Wrench transformWrench(geometry_msgs::Wrench);
+	geometry_msgs::Twist transformTwist(geometry_msgs::Twist);
 	float dt = 0.01;
 	std::string base_frame_ = "world";
 	std::string flange_frame_ = "link7";

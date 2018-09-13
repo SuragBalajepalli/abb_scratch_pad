@@ -42,6 +42,7 @@ class Irb120AccomodationControl {
 	
 
 }; */
+//FIX THIS MESSY LIBRARY!!!
 
 #include <irb120_accomodation_control/irb120_accomodation_control.h>
 	Irb120AccomodationControl::Irb120AccomodationControl(ros::NodeHandle &nh) {
@@ -124,30 +125,37 @@ class Irb120AccomodationControl {
 	}
 
 	geometry_msgs::Wrench Irb120AccomodationControl::transformWrench(geometry_msgs::Wrench wrench) {
+		//This is a useless func for now, 
+		//Can be used well when there is a transform between tool and sensor
 		updateFlangeTransform();
 		Eigen::VectorXf wrench_vector, transformed_wrench_vector;
-		geometry_msgs::Wrench transformed_wrench;
-		wrench_vector<<wrench.force.x,
-						wrench.force.y,
-						wrench.force.z,
-						wrench.torque.x,
-						wrench.torque.y,
-						wrench.torque.z;
-
+		Eigen::Vector3f origin;
+		Eigen::Matrix3f origin_hat;
+		geometry_msgs::Wrench transformed_wrench, recieved_wrench;
+		recieved_wrench = wrench;
+		wrench_vector = Eigen::VectorXf::Zero(6);  //why is Eigen library so moody
+		wrench_vector<<recieved_wrench.force.x,
+						recieved_wrench.force.y,
+						recieved_wrench.force.z,
+						recieved_wrench.torque.x,
+						recieved_wrench.torque.y,
+						recieved_wrench.torque.z;
 		Eigen::MatrixXf wrench_transformation_matrix = Eigen::MatrixXf::Zero(6,6);
-		Eigen::Matrix3f origin_hat = vectorHat(flange_transform_matrix_.block<1,3>(1,3));
-		//This is from MLS book, maybe implemented wrongly
-		wrench_transformation_matrix.block<3,3>(0,0) = flange_transform_matrix_.block<3,3>(0,0).transpose();
-		wrench_transformation_matrix.block<3,3>(3,3) = flange_transform_matrix_.block<3,3>(0,0).transpose();
-		wrench_transformation_matrix.block<3,3>(3,0) = (flange_transform_matrix_.block<3,3>(0,0).transpose()) * origin_hat * -1;
-			
-		transformed_wrench_vector = wrench_transformation_matrix * wrench_vector;
+		origin = flange_transform_affine_.translation();
+		origin_hat = vectorHat(origin);
+		//This is from MLS book, may be implemented wrongly
+		Eigen::Matrix3f rotation_matrix = flange_transform_matrix_.block<3,3>(0,0);
+		wrench_transformation_matrix.block<3,3>(0,0) = flange_transform_affine_.linear().transpose();
+		wrench_transformation_matrix.block<3,3>(3,3) = flange_transform_affine_.linear().transpose();
+		wrench_transformation_matrix.block<3,3>(3,0) = flange_transform_affine_.linear().transpose() * origin_hat * -1;
+		wrench_transformation_matrix.block<3,3>(0,3)<<0,0,0,0,0,0,0,0,0;
+		transformed_wrench_vector = wrench_transformation_matrix.inverse() * wrench_vector;
 		transformed_wrench.force.x = transformed_wrench_vector(0);
 		transformed_wrench.force.y = transformed_wrench_vector(1);
 		transformed_wrench.force.z = transformed_wrench_vector(2);
-		transformed_wrench.torque.x = transformed_wrench_vector(0);
-		transformed_wrench.torque.y = transformed_wrench_vector(1);
-		transformed_wrench.torque.z = transformed_wrench_vector(2);
+		transformed_wrench.torque.x = transformed_wrench_vector(3);
+		transformed_wrench.torque.y = transformed_wrench_vector(4);
+		transformed_wrench.torque.z = transformed_wrench_vector(5);
 		return transformed_wrench;
 	}
 
@@ -242,22 +250,53 @@ class Irb120AccomodationControl {
 	void Irb120AccomodationControl::findCartVelFromWrench(geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist) {
 		//uses accomodation gain described in class
 		updateFlangeTransform(); // gets the latest transform value into a member variable called flange_transform_matrix_;
-		geometry_msgs::Wrench transformed_wrench = transformWrench(wrench);
+		//geometry_msgs::Wrench transformed_wrench = transformWrench(wrench); //What a dumb thought this was. 
+		geometry_msgs::Twist twist_tool_frame;
 		Eigen::VectorXf wrench_matrix(6); //since operations need to be performed
-		Eigen::VectorXf twist_matrix(6);
-		wrench_matrix<<transformed_wrench.force.x, 
-						transformed_wrench.force.y,
-						transformed_wrench.force.z,
-						transformed_wrench.torque.x,
-						transformed_wrench.torque.y,
-						transformed_wrench.torque.z; 
-		twist_matrix = - accomodation_gain_ * wrench_matrix; 
-		twist.linear.x = twist_matrix(0); //rethink the need to populate this message
-		twist.linear.y = twist_matrix(1);
-		twist.linear.z = twist_matrix(2);
-		twist.angular.x = twist_matrix(3);
-		twist.angular.y = twist_matrix(4);
-		twist.angular.z = twist_matrix(5);
+		Eigen::VectorXf twist_matrix_tool_frame(6), twist_matrix_world_frame(6);
+		wrench_matrix<<wrench.force.x, 
+						wrench.force.y,
+						wrench.force.z,
+						wrench.torque.x,
+						wrench.torque.y,
+						wrench.torque.z; 
+		twist_matrix_tool_frame = accomodation_gain_ * wrench_matrix; 
+		twist_tool_frame.linear.x = twist_matrix_tool_frame(0); //rethink the need to populate this message
+		twist_tool_frame.linear.y = twist_matrix_tool_frame(1);
+		twist_tool_frame.linear.z = twist_matrix_tool_frame(2);
+		twist_tool_frame.angular.x = twist_matrix_tool_frame(3);
+		twist_tool_frame.angular.y = twist_matrix_tool_frame(4);
+		twist_tool_frame.angular.z = twist_matrix_tool_frame(5);
+		twist = transformTwist(twist_tool_frame);
+	}
+
+	geometry_msgs::Twist Irb120AccomodationControl::transformTwist(geometry_msgs::Twist twist_tool_frame) {
+		updateFlangeTransform();
+		geometry_msgs::Twist twist_world_frame;
+		Eigen::VectorXf twist_vector_tool_frame(6), twist_vector_world_frame(6);
+		Eigen::Vector3f origin;
+		Eigen::Matrix3f origin_hat;
+		Eigen::MatrixXf twist_transformation_matrix = Eigen::MatrixXf::Zero(6,6);
+		twist_vector_tool_frame<<twist_tool_frame.linear.x,
+								twist_tool_frame.linear.y,
+								twist_tool_frame.linear.z,
+								twist_tool_frame.angular.x,
+								twist_tool_frame.angular.y,
+								twist_tool_frame.angular.z;
+
+		origin = flange_transform_affine_.translation();
+		origin_hat = vectorHat(origin);
+		twist_transformation_matrix.block<3,3>(0,0) = flange_transform_affine_.linear();
+		twist_transformation_matrix.block<3,3>(3,3) = flange_transform_affine_.linear();
+		twist_transformation_matrix.block<3,3>(0,3) = origin_hat * flange_transform_affine_.linear();
+		twist_vector_world_frame = twist_transformation_matrix * twist_vector_tool_frame;
+		twist_world_frame.linear.x = twist_vector_world_frame(0);
+		twist_world_frame.linear.y = twist_vector_world_frame(1);
+		twist_world_frame.linear.z = twist_vector_world_frame(2);
+		twist_world_frame.angular.x = twist_vector_world_frame(3);
+		twist_world_frame.angular.x = twist_vector_world_frame(4);
+		twist_world_frame.angular.x = twist_vector_world_frame(5);
+		return twist_world_frame;
 	}
 
 	void Irb120AccomodationControl::findCartVelFromWrench (geometry_msgs::Wrench wrench, geometry_msgs::Twist &twist,
@@ -404,6 +443,7 @@ class Irb120AccomodationControl {
 	}
 
 	geometry_msgs::Wrench Irb120AccomodationControl::getFTSensorValue() {
+		ros::spinOnce();
 		return g_ft_value_;
 	}
 
